@@ -180,6 +180,7 @@ public class RdbMirrorDbSyncService {
             // 移除对应配置
             mirrorDbConfig.getTableConfig().remove(ddl.getTable());
             if (logger.isTraceEnabled()) {
+
                 logger.trace("Execute DDL sql: {} for database: {}", ddl.getSql(), ddl.getDatabase());
             }
         } catch (Exception e) {
