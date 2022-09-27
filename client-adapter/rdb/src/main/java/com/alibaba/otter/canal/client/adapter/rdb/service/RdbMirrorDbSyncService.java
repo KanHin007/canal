@@ -174,6 +174,7 @@ public class RdbMirrorDbSyncService {
             String sql = ddl.getSql();
             String backtick = SyncUtil.getBacktickByDbType(dataSource.getDbType());
             if (!"`".equals(backtick)) {
+                
                 sql = sql.replaceAll("`", backtick);
             }
             statement.execute(sql);
