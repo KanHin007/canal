@@ -52,6 +52,14 @@ public class RdbMirrorDbSyncService {
         for (Dml dml : dmls) {
             String destination = StringUtils.trimToEmpty(dml.getDestination());
             String database = dml.getDatabase();
+            if(StringUtils.isBlank(database)){
+                continue;
+            }
+            if(database.contains("base")){
+                database = "base";
+            }else{
+                database = "ent";
+            }
             MirrorDbConfig mirrorDbConfig = mirrorDbConfigCache.get(destination + "." + database);
             if (mirrorDbConfig == null) {
                 continue;
@@ -96,7 +104,18 @@ public class RdbMirrorDbSyncService {
             return;
         }
         rdbSyncService.sync(dmlList, dml -> {
-            MirrorDbConfig mirrorDbConfig = mirrorDbConfigCache.get(dml.getDestination() + "." + dml.getDatabase());
+
+            String database = dml.getDatabase();
+            if(StringUtils.isBlank(database)){
+                return false;
+            }
+            if(database.contains("base")){
+                database = "base";
+            }else{
+                database = "ent";
+            }
+
+            MirrorDbConfig mirrorDbConfig = mirrorDbConfigCache.get(dml.getDestination() + "." + database);
             if (mirrorDbConfig == null) {
                 return false;
             }

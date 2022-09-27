@@ -182,18 +182,24 @@ public class ExtensionLoader<T> {
 
     @SuppressWarnings("unchecked")
     private T createExtension(String name, String key) {
-        Class<?> clazz = getExtensionClasses().get(name);
+        Class<?> clazz = null;
+        try {
+            clazz = Class.forName("com.alibaba.otter.canal.client.adapter.rdb.RdbAdapter");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
         if (clazz == null) {
             throw new IllegalStateException("Extension instance(name: " + name + ", class: " + type
                                             + ")  could not be instantiated: class could not be found");
         }
         try {
-            T instance = (T) EXTENSION_KEY_INSTANCE.get(name + "-" + key);
-            if (instance == null) {
-                EXTENSION_KEY_INSTANCE.putIfAbsent(name + "-" + key, clazz.newInstance());
-                instance = (T) EXTENSION_KEY_INSTANCE.get(name + "-" + key);
-            }
-            return instance;
+//            T instance = (T) EXTENSION_KEY_INSTANCE.get(name + "-" + key);
+//            if (instance == null) {
+//                EXTENSION_KEY_INSTANCE.putIfAbsent(name + "-" + key, clazz.newInstance());
+//                instance = (T) EXTENSION_KEY_INSTANCE.get(name + "-" + key);
+//            }
+//            return instance;
+            return (T) clazz.newInstance();
         } catch (Throwable t) {
             throw new IllegalStateException("Extension instance(name: " + name + ", class: " + type
                                             + ")  could not be instantiated: " + t.getMessage(),

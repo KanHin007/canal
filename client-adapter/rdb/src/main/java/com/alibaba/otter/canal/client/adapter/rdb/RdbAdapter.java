@@ -157,9 +157,6 @@ public class RdbAdapter implements OuterAdapter {
             return;
         }
         try {
-            if (!mappingConfigCache.isEmpty()) {
-                rdbSyncService.sync(mappingConfigCache, dmls, envProperties);
-            }
             rdbMirrorDbSyncService.sync(dmls);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -300,8 +297,16 @@ public class RdbAdapter implements OuterAdapter {
             configMap.put(configName, mappingConfig);
         } else {
             // mirrorDB
+            String database = "ent";
+            if(mappingConfig.getDbMapping().getDatabase().contains("base")){
+                database = "base";
+            }else{
+                database = "ent";
+            }
+
             String key = StringUtils.trimToEmpty(mappingConfig.getDestination()) + "."
-                    + mappingConfig.getDbMapping().getDatabase();
+                    + database;
+
             mirrorDbConfigCache.put(key, MirrorDbConfig.create(configName, mappingConfig));
         }
     }

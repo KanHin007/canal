@@ -7,8 +7,8 @@ spring:
     default-property-inclusion: non_null
 
 canal.conf:
-  mode: tcp #tcp kafka rocketMQ rabbitMQ
-  flatMessage: true
+  mode: pulsarMQ #tcp kafka rocketMQ rabbitMQ
+  flatMessage: false
   zookeeperHosts:
   syncBatchSize: 1000
   retries: -1
@@ -46,26 +46,32 @@ canal.conf:
     rabbitmq.password:
     rabbitmq.resource.ownerId:
 
-#  srcDataSources:
-#    defaultDS:
-#      url: jdbc:mysql://127.0.0.1:3306/mytest?useUnicode=true
-#      username: root
-#      password: 121212
+    pulsarmq.getBatchTimeoutSeconds:
+    pulsarmq.batchProcessTimeout:
+    pulsarmq.subscriptName: ent-sync
+    pulsarmq.serverUrl: pulsar://172.16.20.97:6650
+    pulsarmq.roleToken: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJwdWxzYXItdXNlciJ9.cY_woa8yHzqT7mfTgzipBER-nZh1pCLBlvE-ajaviU0
+
+  srcDataSources:
+    defaultDS:
+      url: jdbc:mysql://172.16.20.69:10307/capital_enterprise_688739?useUnicode=true
+      username: deploy
+      password: 123456
   canalAdapters:
-  - instance: example # canal instance Name or mq topic name
+  - instance: capital/cdc/example # canal instance Name or mq topic name
     groups:
     - groupId: g1
       outerAdapters:
-      - name: logger
-#      - name: rdb
-#        key: mysql1
-#        properties:
-#          jdbc.driverClassName: com.mysql.jdbc.Driver
-#          jdbc.url: jdbc:mysql://127.0.0.1:3306/mytest2?useUnicode=true
-#          jdbc.username: root
-#          jdbc.password: 121212
-#          druid.stat.enable: false
-#          druid.stat.slowSqlMillis: 1000
+#      - name: logger
+      - name: rdb
+        key: mysql1
+        properties:
+          jdbc.driverClassName: com.mysql.jdbc.Driver
+          jdbc.url: jdbc:mysql://172.16.20.36:10307/capital_enterprise_688739?useUnicode=true
+          jdbc.username: deploy
+          jdbc.password: 123456
+          druid.stat.enable: false
+          druid.stat.slowSqlMillis: 1000
 #      - name: rdb
 #        key: oracle1
 #        properties:
