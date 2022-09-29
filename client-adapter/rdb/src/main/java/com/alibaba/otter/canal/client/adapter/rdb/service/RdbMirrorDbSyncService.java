@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -27,6 +29,12 @@ import com.alibaba.otter.canal.client.adapter.support.Dml;
  * @version 1.0.0
  */
 public class RdbMirrorDbSyncService {
+
+    /**
+     * DEFINER=`deploy`@`%`
+     */
+    private static final Pattern DDL_PATTERN = Pattern.compile("(create|CREATE)[ \n]+DEFINER=`[A-Za-z_0-9]+`@`[%.0-9A-Za-z]+`[ \n]+(function|FUNCTION|TRIGGER|trigger|PROCEDURE|procedure)?[ \n]+(`[0-9A-Za-z_]+`)");
+
 
     private static final Logger         logger = LoggerFactory.getLogger(RdbMirrorDbSyncService.class);
 
@@ -174,19 +182,37 @@ public class RdbMirrorDbSyncService {
             String sql = ddl.getSql();
             String backtick = SyncUtil.getBacktickByDbType(dataSource.getDbType());
             if (!"`".equals(backtick)) {
-
-                
                 sql = sql.replaceAll("`", backtick);
             }
-            statement.execute(sql);
-            // 移除对应配置
-            mirrorDbConfig.getTableConfig().remove(ddl.getTable());
-            if (logger.isTraceEnabled()) {
 
-                logger.trace("Execute DDL sql: {} for database: {}", ddl.getSql(), ddl.getDatabase());
+            String ddlName = StringUtils.EMPTY;
+            Matcher matcher = DDL_PATTERN.matcher(sql);
+            if(matcher.find()){
+                ddlName = matcher.group(3);
             }
+
+            if(StringUtils.isNotBlank(ddlName)){
+                String newDdlName = ddl.getDatabase()+"."+ddlName;
+                sql = sql.replace(ddlName,newDdlName);
+                logger.info("执行的ddl语句为{}",sql);
+
+                statement.execute(sql);
+                // 移除对应配置
+                mirrorDbConfig.getTableConfig().remove(ddl.getTable());
+                if (logger.isTraceEnabled()) {
+
+                    logger.trace("Execute DDL sql: {} for database: {}", ddl.getSql(), ddl.getDatabase());
+                }
+            }else{
+                logger.warn("解析失败 ： 语句为{}",sql);
+            }
+
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
+
+
+
 }
