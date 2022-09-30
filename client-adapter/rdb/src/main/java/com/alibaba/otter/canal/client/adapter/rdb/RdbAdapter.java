@@ -302,11 +302,6 @@ public class RdbAdapter implements OuterAdapter {
         } else {
             // mirrorDB
             String database = "ent";
-            if(mappingConfig.getDbMapping().getDatabase().contains("base")){
-                database = "base";
-            }else{
-                database = "ent";
-            }
 
             String key = StringUtils.trimToEmpty(mappingConfig.getDestination()) + "."
                     + database;

@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.common.base.Throwables;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,9 @@ public class RdbMirrorDbSyncService {
      * DEFINER=`deploy`@`%`
      */
     private static final Pattern DDL_PATTERN = Pattern.compile("(create|CREATE)[ \n]+DEFINER=`[A-Za-z_0-9]+`@`[%.0-9A-Za-z]+`[ \n]+(function|FUNCTION|TRIGGER|trigger|PROCEDURE|procedure)?[ \n]+(`[0-9A-Za-z_]+`)");
+
+    private static final Pattern CREATE_DATABASE_PATTERN = Pattern.compile("((create|CREATE)[ \n\r]+(DATABASE|database))|" +
+                                                                            "((create|CREATE)[ \n\r]+(table|TABLE)[ \n\r]+[A-Za-z0-9_]+\\.`?[A-Za-z0-9_]`?)");
 
     private String jdbcUrl;
 
@@ -63,10 +67,10 @@ public class RdbMirrorDbSyncService {
                                   DruidDataSource dataSource,
                                   Integer threads,
                                   Map<String, Map<String, Integer>> columnsTypeCache,
-                                  String jdbcUrl,
                                   String jdbcDriver,
                                   String jdbcUserName,
                                   String jdbcPassword,
+                                  String jdbcUrl,
                                   boolean skipDupException) {
         this.mirrorDbConfigCache = mirrorDbConfigCache;
         this.dataSource = dataSource;
@@ -96,11 +100,7 @@ public class RdbMirrorDbSyncService {
             if (StringUtils.isBlank(database)) {
                 continue;
             }
-            if (database.contains("base")) {
-                database = "base";
-            } else {
-                database = "ent";
-            }
+            database = "ent";
             MirrorDbConfig mirrorDbConfig = mirrorDbConfigCache.get(destination + "." + database);
             if (mirrorDbConfig == null) {
                 continue;
@@ -150,11 +150,8 @@ public class RdbMirrorDbSyncService {
             if (StringUtils.isBlank(database)) {
                 return false;
             }
-            if (database.contains("base")) {
-                database = "base";
-            } else {
-                database = "ent";
-            }
+
+            database = "ent";
 
             MirrorDbConfig mirrorDbConfig = mirrorDbConfigCache.get(dml.getDestination() + "." + database);
             if (mirrorDbConfig == null) {
@@ -210,6 +207,7 @@ public class RdbMirrorDbSyncService {
      * @param ddl DDL
      */
     private void executeDdl(MirrorDbConfig mirrorDbConfig, Dml ddl) {
+        logger.info("执行ddl语句，数据库{} ，sql语句{}", ddl.getDatabase(), ddl.getSql());
 //        try (Connection conn = dataSource.getConnection(); Statement statement = conn.createStatement()) {
 //            // 替换反引号
 //            String sql = ddl.getSql();
@@ -229,31 +227,56 @@ public class RdbMirrorDbSyncService {
 //
 //
 //        } catch (Exception e) {
-//            throw new RuntimeException(e);
+//            logger.error("执行ddl语句出现异常，数据库{} ，sql语句{}，异常 {}", ddl.getDatabase(), ddl.getSql(), Throwables.getStackTraceAsString(e));
 //        }
 
-        Connection connection = null;
-        Statement statement = null;
-        try {
-            Class.forName(jdbcDriver);
-            connection = DriverManager.getConnection(jdbcUrl+ddl.getDatabase()+"?useUnicode=true&amp;characterEncoding=utf-8",this.jdbcUserName,this.jdbcPassword);
-            statement = connection.createStatement();
-            statement.execute(ddl.getSql());
-            // 移除对应配置
-            mirrorDbConfig.getTableConfig().remove(ddl.getTable());
-            logger.info("执行ddl语句，数据库{} ，sql语句{}",ddl.getDatabase(),ddl.getSql());
-        } catch (Exception e) {
-            logger.error("执行ddl语句出现异常，数据库{} ，sql语句{}",ddl.getDatabase(),ddl.getSql());
-        } finally {
+        Matcher matcher = CREATE_DATABASE_PATTERN.matcher(ddl.getSql());
+        if(matcher.find()){
+            try (Connection conn = dataSource.getConnection(); Statement statement = conn.createStatement()) {
+                // 替换反引号
+                String sql = ddl.getSql();
+                String backtick = SyncUtil.getBacktickByDbType(dataSource.getDbType());
+                if (!"`".equals(backtick)) {
+                    sql = sql.replaceAll("`", backtick);
+                }
+
+
+                statement.execute(sql);
+                // 移除对应配置
+                mirrorDbConfig.getTableConfig().remove(ddl.getTable());
+                if (logger.isTraceEnabled()) {
+
+                    logger.trace("Execute DDL sql: {} for database: {}", ddl.getSql(), ddl.getDatabase());
+                }
+
+
+            } catch (Exception e) {
+                logger.error("执行ddl语句出现异常，数据库{} ，sql语句{}，异常 {}", ddl.getDatabase(), ddl.getSql(), Throwables.getStackTraceAsString(e));
+            }
+        }else {
+            Connection connection = null;
+            Statement statement = null;
             try {
-                if(statement != null){
-                    statement.close();
+                Class.forName(jdbcDriver);
+                connection = DriverManager.getConnection(jdbcUrl + ddl.getDatabase() + "?useUnicode=true&amp;characterEncoding=utf-8", this.jdbcUserName, this.jdbcPassword);
+                statement = connection.createStatement();
+                statement.execute(ddl.getSql());
+                // 移除对应配置
+                mirrorDbConfig.getTableConfig().remove(ddl.getTable());
+                logger.info("执行ddl语句，数据库{} ，sql语句{}", ddl.getDatabase(), ddl.getSql());
+            } catch (Exception e) {
+                logger.error("执行ddl语句出现异常，数据库{} ，sql语句{} ， 异常{}", ddl.getDatabase(), ddl.getSql(),Throwables.getStackTraceAsString(e));
+            } finally {
+                try {
+                    if (statement != null) {
+                        statement.close();
+                    }
+                    if (connection != null) {
+                        connection.close();
+                    }
+                } catch (SQLException throwables) {
+                    throwables.printStackTrace();
                 }
-                if(connection != null){
-                    connection.close();
-                }
-            } catch (SQLException throwables) {
-                throwables.printStackTrace();
             }
         }
 
