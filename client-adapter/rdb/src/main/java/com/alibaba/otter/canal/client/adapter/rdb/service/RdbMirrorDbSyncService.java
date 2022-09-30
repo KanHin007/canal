@@ -1,6 +1,8 @@
 package com.alibaba.otter.canal.client.adapter.rdb.service;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -35,19 +37,50 @@ public class RdbMirrorDbSyncService {
      */
     private static final Pattern DDL_PATTERN = Pattern.compile("(create|CREATE)[ \n]+DEFINER=`[A-Za-z_0-9]+`@`[%.0-9A-Za-z]+`[ \n]+(function|FUNCTION|TRIGGER|trigger|PROCEDURE|procedure)?[ \n]+(`[0-9A-Za-z_]+`)");
 
+    private String jdbcUrl;
 
-    private static final Logger         logger = LoggerFactory.getLogger(RdbMirrorDbSyncService.class);
+    private String jdbcDriver;
+
+    private String jdbcUserName;
+
+    private String jdbcPassword;
+
+    private static final Logger logger = LoggerFactory.getLogger(RdbMirrorDbSyncService.class);
 
     private Map<String, MirrorDbConfig> mirrorDbConfigCache;                                           // 镜像库配置
-    private DruidDataSource             dataSource;
-    private RdbSyncService              rdbSyncService;                                                // rdbSyncService代理
+    private DruidDataSource dataSource;
+    private RdbSyncService rdbSyncService;                                                // rdbSyncService代理
 
     public RdbMirrorDbSyncService(Map<String, MirrorDbConfig> mirrorDbConfigCache, DruidDataSource dataSource,
                                   Integer threads, Map<String, Map<String, Integer>> columnsTypeCache,
-                                  boolean skipDupException){
+                                  boolean skipDupException) {
         this.mirrorDbConfigCache = mirrorDbConfigCache;
         this.dataSource = dataSource;
         this.rdbSyncService = new RdbSyncService(dataSource, threads, columnsTypeCache, skipDupException);
+    }
+
+    public RdbMirrorDbSyncService(Map<String, MirrorDbConfig> mirrorDbConfigCache,
+                                  DruidDataSource dataSource,
+                                  Integer threads,
+                                  Map<String, Map<String, Integer>> columnsTypeCache,
+                                  String jdbcUrl,
+                                  String jdbcDriver,
+                                  String jdbcUserName,
+                                  String jdbcPassword,
+                                  boolean skipDupException) {
+        this.mirrorDbConfigCache = mirrorDbConfigCache;
+        this.dataSource = dataSource;
+        this.rdbSyncService = new RdbSyncService(dataSource, threads, columnsTypeCache, skipDupException);
+        this.jdbcUserName = jdbcUserName;
+        this.jdbcDriver = jdbcDriver;
+        this.jdbcPassword = jdbcPassword;
+        // jdbc:mysql://172.16.20.36:10307/capital_enterprise_688739?useUnicode=true
+        Pattern pattern = Pattern.compile("(jdbc:mysql://[A-Za-z0-9.:]+/)[A-Za-z0-9_]+");
+        Matcher matcher = pattern.matcher(jdbcUrl);
+        if(matcher.find()){
+            this.jdbcUrl = matcher.group(1);
+        }
+        logger.info("jdbcUrl is {}",jdbcUrl);
     }
 
     /**
@@ -60,12 +93,12 @@ public class RdbMirrorDbSyncService {
         for (Dml dml : dmls) {
             String destination = StringUtils.trimToEmpty(dml.getDestination());
             String database = dml.getDatabase();
-            if(StringUtils.isBlank(database)){
+            if (StringUtils.isBlank(database)) {
                 continue;
             }
-            if(database.contains("base")){
+            if (database.contains("base")) {
                 database = "base";
-            }else{
+            } else {
                 database = "ent";
             }
             MirrorDbConfig mirrorDbConfig = mirrorDbConfigCache.get(destination + "." + database);
@@ -114,12 +147,12 @@ public class RdbMirrorDbSyncService {
         rdbSyncService.sync(dmlList, dml -> {
 
             String database = dml.getDatabase();
-            if(StringUtils.isBlank(database)){
+            if (StringUtils.isBlank(database)) {
                 return false;
             }
-            if(database.contains("base")){
+            if (database.contains("base")) {
                 database = "base";
-            }else{
+            } else {
                 database = "ent";
             }
 
@@ -141,9 +174,9 @@ public class RdbMirrorDbSyncService {
     /**
      * 初始化表配置
      *
-     * @param key 配置key: destination.database.table
+     * @param key           配置key: destination.database.table
      * @param baseConfigMap db sync config
-     * @param dml DML
+     * @param dml           DML
      */
     private void initMappingConfig(String key, MappingConfig baseConfigMap, MirrorDbConfig mirrorDbConfig, Dml dml) {
         MappingConfig mappingConfig = mirrorDbConfig.getTableConfig().get(key);
@@ -177,42 +210,54 @@ public class RdbMirrorDbSyncService {
      * @param ddl DDL
      */
     private void executeDdl(MirrorDbConfig mirrorDbConfig, Dml ddl) {
-        try (Connection conn = dataSource.getConnection(); Statement statement = conn.createStatement()) {
-            // 替换反引号
-            String sql = ddl.getSql();
-            String backtick = SyncUtil.getBacktickByDbType(dataSource.getDbType());
-            if (!"`".equals(backtick)) {
-                sql = sql.replaceAll("`", backtick);
-            }
+//        try (Connection conn = dataSource.getConnection(); Statement statement = conn.createStatement()) {
+//            // 替换反引号
+//            String sql = ddl.getSql();
+//            String backtick = SyncUtil.getBacktickByDbType(dataSource.getDbType());
+//            if (!"`".equals(backtick)) {
+//                sql = sql.replaceAll("`", backtick);
+//            }
+//
+//
+//            statement.execute(sql);
+//            // 移除对应配置
+//            mirrorDbConfig.getTableConfig().remove(ddl.getTable());
+//            if (logger.isTraceEnabled()) {
+//
+//                logger.trace("Execute DDL sql: {} for database: {}", ddl.getSql(), ddl.getDatabase());
+//            }
+//
+//
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
 
-            String ddlName = StringUtils.EMPTY;
-            Matcher matcher = DDL_PATTERN.matcher(sql);
-            if(matcher.find()){
-                ddlName = matcher.group(3);
-            }
-
-            if(StringUtils.isNotBlank(ddlName)){
-                String newDdlName = ddl.getDatabase()+"."+ddlName;
-                sql = sql.replace(ddlName,newDdlName);
-                logger.info("执行的ddl语句为{}",sql);
-
-                statement.execute(sql);
-                // 移除对应配置
-                mirrorDbConfig.getTableConfig().remove(ddl.getTable());
-                if (logger.isTraceEnabled()) {
-
-                    logger.trace("Execute DDL sql: {} for database: {}", ddl.getSql(), ddl.getDatabase());
-                }
-            }else{
-                logger.warn("解析失败 ： 语句为{}",sql);
-            }
-
-
+        Connection connection = null;
+        Statement statement = null;
+        try {
+            Class.forName(jdbcDriver);
+            connection = DriverManager.getConnection(jdbcUrl+ddl.getDatabase()+"?useUnicode=true&amp;characterEncoding=utf-8",this.jdbcUserName,this.jdbcPassword);
+            statement = connection.createStatement();
+            statement.execute(ddl.getSql());
+            // 移除对应配置
+            mirrorDbConfig.getTableConfig().remove(ddl.getTable());
+            logger.info("执行ddl语句，数据库{} ，sql语句{}",ddl.getDatabase(),ddl.getSql());
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            logger.error("执行ddl语句出现异常，数据库{} ，sql语句{}",ddl.getDatabase(),ddl.getSql());
+        } finally {
+            try {
+                if(statement != null){
+                    statement.close();
+                }
+                if(connection != null){
+                    connection.close();
+                }
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
         }
-    }
 
+    }
 
 
 }

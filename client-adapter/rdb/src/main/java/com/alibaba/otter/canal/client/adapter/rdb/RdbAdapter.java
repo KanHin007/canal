@@ -140,6 +140,10 @@ public class RdbAdapter implements OuterAdapter {
             dataSource,
             threads != null ? Integer.valueOf(threads) : null,
             rdbSyncService.getColumnsTypeCache(),
+            properties.get("jdbc.driverClassName"),
+            properties.get("jdbc.username"),
+            properties.get("jdbc.password"),
+            properties.get("jdbc.url"),
             skipDupException);
 
         rdbConfigMonitor = new RdbConfigMonitor();
