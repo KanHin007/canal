@@ -263,7 +263,7 @@ public class RdbMirrorDbSyncService {
                 statement.execute(ddl.getSql());
                 // 移除对应配置
                 mirrorDbConfig.getTableConfig().remove(ddl.getTable());
-                logger.info("执行ddl语句，数据库{} ，sql语句{}", ddl.getDatabase(), ddl.getSql());
+            //    logger.info("执行ddl语句，数据库{} ，sql语句{}", ddl.getDatabase(), ddl.getSql());
             } catch (Exception e) {
                 logger.error("执行ddl语句出现异常，数据库{} ，sql语句{} ， 异常{}", ddl.getDatabase(), ddl.getSql(),Throwables.getStackTraceAsString(e));
             } finally {
