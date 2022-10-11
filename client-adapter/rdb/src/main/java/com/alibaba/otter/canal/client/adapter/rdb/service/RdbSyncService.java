@@ -334,7 +334,7 @@ public class RdbSyncService {
         updateSql.append("UPDATE ").append(SyncUtil.getDbTableName(dbMapping, dataSource.getDbType())).append(" SET ");
         List<Map<String, ?>> values = new ArrayList<>();
         boolean hasMatched = false;
-        for (String srcColumnName : old.keySet()) {
+        for (String srcColumnName : data.keySet()) {
             List<String> targetColumnNames = new ArrayList<>();
             columnsMap.forEach((targetColumn, srcColumn) -> {
                 if (srcColumnName.equalsIgnoreCase(srcColumn)) {
