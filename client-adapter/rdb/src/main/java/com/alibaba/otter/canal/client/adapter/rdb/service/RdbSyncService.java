@@ -292,6 +292,7 @@ public class RdbSyncService {
         }
 
         try {
+            logger.info("当前的dml为：【{}】",JSON.toJSONString(dml));
             batchExecutor.execute(insertSql.toString(), values);
         } catch (SQLException e) {
             if (skipDupException
@@ -363,6 +364,7 @@ public class RdbSyncService {
 
         // 拼接主键
         appendCondition(dbMapping, updateSql, ctype, values, data, old);
+        logger.info("当前的dml为：【{}】",JSON.toJSONString(dml));
         batchExecutor.execute(updateSql.toString(), values);
         if (logger.isTraceEnabled()) {
             logger.trace("Update target table, sql: {}", updateSql);
@@ -390,6 +392,7 @@ public class RdbSyncService {
         List<Map<String, ?>> values = new ArrayList<>();
         // 拼接主键
         appendCondition(dbMapping, sql, ctype, values, data);
+        logger.info("当前的dml为：【{}】",JSON.toJSONString(dml));
         batchExecutor.execute(sql.toString(), values);
         if (logger.isTraceEnabled()) {
             logger.trace("Delete from target table, sql: {}", sql);
@@ -405,6 +408,7 @@ public class RdbSyncService {
         DbMapping dbMapping = config.getDbMapping();
         StringBuilder sql = new StringBuilder();
         sql.append("TRUNCATE TABLE ").append("`"+dml.getDatabase()+"`.`"+dml.getTable()+"`");
+        logger.info("当前的dml为：【{}】",JSON.toJSONString(dml));
         batchExecutor.execute(sql.toString(), new ArrayList<>());
         if (logger.isTraceEnabled()) {
             logger.trace("Truncate target table, sql: {}", sql);
