@@ -52,17 +52,30 @@ public class BatchExecutor implements Closeable {
     }
 
     public void execute(String sql, List<Map<String, ?>> values) throws SQLException {
-        PreparedStatement pstmt = getConn().prepareStatement(sql);
-        int len = values.size();
-        for (int i = 0; i < len; i++) {
-            int type = (Integer) values.get(i).get("type");
-            Object value = values.get(i).get("value");
-            SyncUtil.setPStmt(type, pstmt, value, i + 1);
+        boolean auto = getConn().getAutoCommit();
+        getConn().setAutoCommit(false);
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = getConn().prepareStatement(sql);
+            int len = values.size();
+            for (int i = 0; i < len; i++) {
+                int type = (Integer) values.get(i).get("type");
+                Object value = values.get(i).get("value");
+                SyncUtil.setPStmt(type, pstmt, value, i + 1);
+            }
+            pstmt.execute();
+            idx.incrementAndGet();
+            getConn().commit();
+            logger.info("当前执行的sql【{}】 ,,,, 参数【{}】",sql,values);
+        }catch (Exception e){
+            logger.error("执行异常 当前执行的sql【{}】 ,,,, 参数【{}】",sql,values);
+            getConn().rollback();
+        }finally {
+            if(pstmt != null){
+                pstmt.close();
+            }
+            getConn().setAutoCommit(auto);
         }
-
-        pstmt.execute();
-        idx.incrementAndGet();
-        pstmt.close();
     }
 
     public void commit() throws SQLException {

@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
 
+import com.google.common.base.Throwables;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +46,7 @@ public class RdbSyncService {
     // 源库表字段类型缓存: instance.schema.table -> <columnName, jdbcType>
     private Map<String, Map<String, Integer>> columnsTypeCache;
 
-    private int                               threads = 3;
+    private int                               threads = 1;
     private boolean                           skipDupException;
 
     private List<SyncItem>[]                  dmlsPartition;
@@ -118,11 +119,11 @@ public class RdbSyncService {
                                 syncItem.config,
                                 syncItem.singleDml));
                             dmlsPartition[j].clear();
-                            batchExecutors[j].commit();
+                        //    batchExecutors[j].commit();
                             return true;
                         } catch (Throwable e) {
-                            dmlsPartition[j].clear();
-                            batchExecutors[j].rollback();
+//                            dmlsPartition[j].clear();
+//                            batchExecutors[j].rollback();
                             throw new RuntimeException(e);
                         }
                     }));
@@ -231,11 +232,11 @@ public class RdbSyncService {
                 } else if (type != null && type.equalsIgnoreCase("TRUNCATE")) {
                     truncate(batchExecutor, config);
                 }
-                if (logger.isDebugEnabled()) {
-                    logger.debug("DML: {}", JSON.toJSONString(dml, Feature.WriteNulls));
-                }
+//                if (logger.isDebugEnabled()) {
+//                    logger.debug("DML: {}", JSON.toJSONString(dml, Feature.WriteNulls));
+//                }
             } catch (SQLException e) {
-                throw new RuntimeException(e);
+                logger.error("执行sql【{}】出现问题【{}】",dml.getData(), Throwables.getStackTraceAsString(e));
             }
         }
     }
