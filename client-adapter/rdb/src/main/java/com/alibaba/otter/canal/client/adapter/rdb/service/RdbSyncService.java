@@ -230,7 +230,7 @@ public class RdbSyncService {
                 } else if (type != null && type.equalsIgnoreCase("DELETE")) {
                     delete(batchExecutor, config, dml);
                 } else if (type != null && type.equalsIgnoreCase("TRUNCATE")) {
-                    truncate(batchExecutor, config);
+                    truncate(batchExecutor, config,dml);
                 }
 //                if (logger.isDebugEnabled()) {
 //                    logger.debug("DML: {}", JSON.toJSONString(dml, Feature.WriteNulls));
@@ -258,7 +258,7 @@ public class RdbSyncService {
         Map<String, String> columnsMap = SyncUtil.getColumnsMap(dbMapping, data);
 
         StringBuilder insertSql = new StringBuilder();
-        insertSql.append("INSERT INTO ").append(SyncUtil.getDbTableName(dbMapping, dataSource.getDbType())).append(" (");
+        insertSql.append("INSERT INTO ").append("`"+dml.getDatabase()+"`.`"+dml.getTable()+"`").append(" (");
 
         columnsMap.forEach((targetColumnName, srcColumnName) -> insertSql.append(backtick)
             .append(targetColumnName)
@@ -332,7 +332,7 @@ public class RdbSyncService {
         Map<String, Integer> ctype = getTargetColumnType(batchExecutor.getConn(), config);
 
         StringBuilder updateSql = new StringBuilder();
-        updateSql.append("UPDATE ").append(SyncUtil.getDbTableName(dbMapping, dataSource.getDbType())).append(" SET ");
+        updateSql.append("UPDATE ").append("`"+dml.getDatabase()+"`.`"+dml.getTable()+"`").append(" SET ");
         List<Map<String, ?>> values = new ArrayList<>();
         boolean hasMatched = false;
         for (String srcColumnName : data.keySet()) {
@@ -385,7 +385,7 @@ public class RdbSyncService {
         Map<String, Integer> ctype = getTargetColumnType(batchExecutor.getConn(), config);
 
         StringBuilder sql = new StringBuilder();
-        sql.append("DELETE FROM ").append(SyncUtil.getDbTableName(dbMapping, dataSource.getDbType())).append(" WHERE ");
+        sql.append("DELETE FROM ").append("`"+dml.getDatabase()+"`.`"+dml.getTable()+"`").append(" WHERE ");
 
         List<Map<String, ?>> values = new ArrayList<>();
         // 拼接主键
@@ -401,10 +401,10 @@ public class RdbSyncService {
      *
      * @param config
      */
-    private void truncate(BatchExecutor batchExecutor, MappingConfig config) throws SQLException {
+    private void truncate(BatchExecutor batchExecutor, MappingConfig config,SingleDml dml) throws SQLException {
         DbMapping dbMapping = config.getDbMapping();
         StringBuilder sql = new StringBuilder();
-        sql.append("TRUNCATE TABLE ").append(SyncUtil.getDbTableName(dbMapping, dataSource.getDbType()));
+        sql.append("TRUNCATE TABLE ").append("`"+dml.getDatabase()+"`.`"+dml.getTable()+"`");
         batchExecutor.execute(sql.toString(), new ArrayList<>());
         if (logger.isTraceEnabled()) {
             logger.trace("Truncate target table, sql: {}", sql);
