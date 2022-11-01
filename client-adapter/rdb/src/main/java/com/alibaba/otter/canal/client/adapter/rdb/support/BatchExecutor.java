@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.sql.DataSource;
 
+import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,7 +69,7 @@ public class BatchExecutor implements Closeable {
             getConn().commit();
             logger.info("当前执行的sql【{}】 ,,,, 参数【{}】",sql,values);
         }catch (Exception e){
-            logger.error("执行异常 当前执行的sql【{}】 ,,,, 参数【{}】",sql,values);
+            logger.error("执行异常 当前执行的sql【{}】 ,,,, 参数【{}】,,,异常【{}】",sql,values, Throwables.getStackTraceAsString(e));
             getConn().rollback();
         }finally {
             if(pstmt != null){
